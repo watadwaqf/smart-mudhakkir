@@ -34,13 +34,28 @@ lat = math.radians(LAT)
 
 def hour_angle(alt_deg):
     a = math.radians(alt_deg)
-    return math.degrees(math.acos((math.sin(a) - math.sin(lat) * math.sin(dec)) / (math.cos(lat) * math.cos(dec)))) / 15
+    x = (math.sin(a) - math.sin(lat) * math.sin(dec)) / (math.cos(lat) * math.cos(dec))
+    if abs(x) > 1:
+        return None  # الشمس لا تبلغ هذه الزاوية اليوم (خطوط العرض العالية)
+    return math.degrees(math.acos(x)) / 15
+
+
+# مراجعة ١٧ نوفمبر ٢٠٢٦: في خطوط العرض العالية صيفًا لا تنزل الشمس إلى زاوية الفجر أو العشاء، فكان acos يسقط
+# بالخطأ ويتعطّل معه التقويم والأسئلة. فيُحسب حينئذٍ بقاعدة سُبع الليل: الفجر قبل الشروق بسُبع الليل، والعشاء بعد المغرب بمثله.
+SUN = hour_angle(-0.833)
+if SUN is None:  # شمسٌ لا تغرب أو لا تطلع
+    SUN = 12.0 - 1 / 60 if math.sin(lat) * math.sin(dec) > 0 else 1 / 60
+
+
+def deep(alt_deg):
+    h = hour_angle(alt_deg)
+    return h if h is not None else SUN + (24 - 2 * SUN) / 7
 
 
 asr_alt = math.degrees(math.atan(1 / (ASR_FACTOR + math.tan(abs(lat - dec)))))
-maghrib = noon + hour_angle(-0.833) + 1 / 60
-isha = maghrib + float(ISHA_MIN) / 60 if ISHA_MIN else noon + hour_angle(-ISHA)
-t = {"الفجر": noon - hour_angle(-FAJR), "الشروق": noon - hour_angle(-0.833), "الظهر": noon + 2 / 60,
-     "العصر": noon + hour_angle(asr_alt), "المغرب": maghrib, "العشاء": isha}
+maghrib = noon + SUN + 1 / 60
+isha = maghrib + float(ISHA_MIN) / 60 if ISHA_MIN else noon + deep(-ISHA)
+t = {"الفجر": noon - deep(-FAJR), "الشروق": noon - SUN, "الظهر": noon + 2 / 60,
+     "العصر": noon + (hour_angle(asr_alt) or SUN * 0.6), "المغرب": maghrib, "العشاء": isha}
 fmt = lambda h: (datetime(d.year, d.month, d.day) + timedelta(minutes=round(h * 60))).strftime("%H:%M")
 print(json.dumps({k: fmt(v) for k, v in t.items()}, ensure_ascii=False))

@@ -84,7 +84,7 @@ flowchart LR
 ## ما يميّزه
 
 - **مزامنةٌ تدريجيّة لا تكرّر الإشعارات**: ما لم يتغيّر في «التذكيرات» لا يُمسّ، والموقوت لا يرنّ في منتصف الليل.
-- **تفريغٌ محلّيٌّ مرّتين**: بمسرد الأسماء، وبلا مسرد للكلمات الأجنبيّة التي يُسقطها المسرد؛ والصوت لا يخرج من الماك للتفريغ.
+- **تفريغٌ محلّيٌّ مرّتين**: بمسرد الأسماء، وبلا مسرد للكلمات الأجنبيّة التي يُسقطها المسرد؛ والتفريغ لا يُخرج الصوت من الماك. (أمّا «🎧 صوتك الأصليّ» فيُرفع إلى Notion، ويُعطَّل من `audio.enabled`.)
 - **أسئلةٌ قليلة**: الصفات تُفترض ويُصرَّح بالافتراض، والمضمون الغامض لا يُفترض أبدًا بل يُسأل عنه؛ وخمسة أسئلةٍ في اليوم على الأكثر، وسؤالٌ واحد لكلّ بند.
 - **الأسئلة تأتيك**: بندٌ واحد «أسئلة اليوم» ينبّهك بعد الصلاة التالية، واختصارٌ يعرضها بخياراتها وتجيب بنقرة أو بصوتك.
 - **يتعلّمك**: تصحيحاتك («أخطأت…»، «من الآن…») قواعد تُكتب في «ما أعرفه عنك»، وأوقات إنجازك الفعليّة تُرصد كلّ أسبوع.
@@ -104,7 +104,36 @@ flowchart LR
 - **whisper.cpp وffmpeg** (`brew install whisper-cpp ffmpeg`) ونموذج Whisper (يُقترح large-v3، نحو ٣ جيجابايت).
 - اختياريّ: **تيليجرام** وبوتٌ خاصّ بك.
 
-## التثبيت
+## التثبيت «توتش إن توتش»: Claude يثبّته عنك
+
+لا تحتاج أن تعرف البرمجة ولا الطرفيّة. Claude يفتح التطبيقات على شاشتك ويضغط ويكتب عنك، ويخبرك بما يفعل، ولا يوقفك إلّا عند ما لا يجوز أن يفعله غيرك: كلمات المرور والمفاتيح.
+
+**١. ثبّت تطبيق Claude على الماك** من [claude.ai/download](https://claude.ai/download)، وسجّل الدخول باشتراكك.
+
+**٢. اسمح له بالعمل على شاشتك:** في التطبيق افتح الإعدادات ← This computer ← **Computer use**، وفعّله.
+
+**٣. انسخ رابط هذه الصفحة** من شريط العنوان في متصفّحك. ثمّ **افتح تبويب Code** في التطبيق، وابدأ محادثةً جديدة، والصق هذه الرسالة وضع الرابط مكان [الرابط]:
+
+> ثبّت لي نظام «المذكّر الذكي» من [الرابط] بطريقة «توتش إن توتش»: نفّذ الخطوات عنّي على الشاشة، واتبع ملفّ SKILL.md فيه، وأوقفني فقط عند كلمات المرور والمفاتيح.
+
+**٤. أجب عن أسئلته**: أدوارك، وأشخاصك المهمّون، ومدينتك (لأوقات الصلاة)، ولغتك. وكلّما طلب إذنًا بتطبيق («التذكيرات» أو «التقويم» أو «الاختصارات» أو Notion) فوافق.
+
+**ما يبقى عليك وحدك:**
+
+| متى | ماذا تفعل |
+| --- | --- |
+| عند Notion | تسجّل الدخول، وتنسخ «مفتاح التكامل» الذي ينشئه وتلصقه حيث يطلب |
+| عند تثبيت أدوات التفريغ | توافق، وتكتب كلمة مرور الماك إن طُلبت |
+| عند ظهور نوافذ macOS | تضغط «السماح» (الوصول إلى التذكيرات والتقويم والملفّات) |
+| عند الجوّال | تفتح قفله، ويضيف هو الويدجات من شاشة الماك عبر «محاكاة iPhone» |
+| عند الاختصار «مفتاح المذكّر» | تلصق المفتاح فيه بيدك |
+| عند تيليجرام (اختياريّ) | تحفظ مفتاح البوت بنفسك |
+
+يستغرق التثبيت قرابة ساعة، وأكثرها انتظار تنزيل نموذج التفريغ (نحو ٣ جيجابايت). وفي آخره يفحص Claude كلّ جزء، ويريك أوّل تذكيرٍ يصل إلى جوّالك.
+
+**إن لم تجد «Computer use» في الإعدادات**، فاكتب في الرسالة «بطريقة علّمني» بدل «توتش إن توتش»: يعرض Claude فوق شاشتك تلميحاتٍ تشير إلى ما تضغط عليه خطوةً خطوة. أو اكتب «نصًّا» فيكتب لك الخطوات.
+
+### لمن يعرف Claude Code
 
 المستودع مهارةٌ لـ Claude Code: [`SKILL.md`](SKILL.md) يقود Claude ليثبّت النظام معك خطوةً خطوة: يسألك عن أدوارك وأشخاصك ومدينتك ولغتك، وينشئ مخازن Notion بخصائصها، ويكتب دستورك من القالب، ويثبّت Whisper، ويبني الاختصارين، وينشئ المهامّ المجدولة. والمفاتيح وكلمات المرور تدخلها أنت بنفسك.
 
@@ -147,4 +176,4 @@ smart-mudhakkir/
 3. **Display.** AI‑free Mac scripts (Python + JXA) render the day into Apple **Reminders** and **Calendar** and their widgets, ordered around the five daily prayers, plus five "horizon" lists (week → year). Checking an item off marks it done in Notion. Sync is incremental, so alarms never re‑fire.
 4. **Questions & learning.** Missing details that are cheap to get wrong (role, rough time) are assumed and labelled as assumptions; vague *content* is never assumed — it becomes a question. At most five new questions a day, one per item, answered through a generated Shortcut. Corrections and answers become rules in a "What I know about you" page, and actual completion times are measured weekly.
 
-Requirements: an Apple‑silicon Mac, an iPhone, Notion (internal integration key stored in the macOS Keychain), a Claude plan with scheduled tasks and Claude Code, whisper.cpp and ffmpeg; Telegram is optional. Installation is driven by [`SKILL.md`](SKILL.md), a Claude Code skill that interviews you, creates the Notion databases, writes your constitution from the template, installs Whisper, builds the Shortcuts and schedules the agents. All IDs and personal settings live in an untracked `mac/config.json`; `mac/check_private.py` scans the repo for Notion IDs, emails, phone numbers, home paths and your own banned words before you publish. Licensed under MIT.
+Requirements: an Apple‑silicon Mac, an iPhone, Notion (internal integration key stored in the macOS Keychain), a Claude plan with scheduled tasks and Claude Code, whisper.cpp and ffmpeg; Telegram is optional. **No technical skills needed:** install the Claude desktop app, turn on *Computer use*, and paste the one‑line request from the Arabic section above — Claude installs everything "touch‑in‑touch" on your screen and stops only for passwords and keys. Under the hood, installation is driven by [`SKILL.md`](SKILL.md), a Claude Code skill that interviews you, creates the Notion databases, writes your constitution from the template, installs Whisper, builds the Shortcuts and schedules the agents. All IDs and personal settings live in an untracked `mac/config.json`; `mac/check_private.py` scans the repo for Notion IDs, emails, phone numbers, home paths and your own banned words before you publish. Licensed under MIT.

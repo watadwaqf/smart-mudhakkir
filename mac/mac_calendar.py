@@ -46,13 +46,33 @@ def notion(tok, path, body=None):
     r = subprocess.run(cmd, input=json.dumps(body) if body is not None else None, capture_output=True, text=True)
     j = json.loads(r.stdout or "{}")
     if j.get("object") == "error":
-        raise RuntimeError(j.get("message"))
+        err = RuntimeError(j.get("message"))
+        err.code = j.get("code")  # كـ object_not_found، ليميّز الحذفُ الصفحةَ الزائلة من خطأ الشبكة
+        raise err
     return j
+
+
+_LOCKS = []
+
+
+def single(name):
+    """قفلٌ لا ينتظر (مراجعة ١٧ نوفمبر ٢٠٢٦): إن كانت جولةٌ أخرى تشغّل هذا العمل الآن رجع False فيخرج السكربت بلا عمل،
+    فلا تتداخل جولتان (كتفريغٍ طويل يتجاوز عشر دقائق) فتُكرِّرا الكتابة."""
+    import fcntl
+    f = open(os.path.join(STATE, name + ".lock"), "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close(); return False
+    _LOCKS.append(f); return True
+
+
+MAX_PAGES = 50  # ٥٠٠٠ صفّ؛ وما زاد يُنبَّه عليه ولا يُبتر بصمت
 
 
 def query_all(tok, db, body):
     rows, cur = [], None
-    for _ in range(10):
+    for _ in range(MAX_PAGES):
         b = dict(body, page_size=100)
         if cur:
             b["start_cursor"] = cur
@@ -61,6 +81,8 @@ def query_all(tok, db, body):
         if not j.get("has_more"):
             break
         cur = j.get("next_cursor")
+    else:
+        print(f"WARN query_all: بلغ {MAX_PAGES * 100} صفّ ولم ينتهِ المخزن {db}؛ ضيّق الاستعلام بفلتر", file=sys.stderr)
     return rows
 
 

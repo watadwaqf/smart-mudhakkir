@@ -81,6 +81,8 @@ def attach(tok, page_id, fid, caption):
 
 
 def main():
+    if not mc.single("audio"):
+        print("AUDIO BUSY: جولةٌ أخرى ترفع الصوت الآن"); return 0
     if not C.cfg["audio"].get("enabled", True):
         print("AUDIO OFF"); return 0
     tok = mc.token()
@@ -168,8 +170,10 @@ def cleanup(tok, links):
                 try:
                     pg = mc.notion(tok, "pages/" + t)
                     status[t] = "منجز" if pg.get("archived") or pg.get("in_trash") else (mc.prop(pg, "الحال") or "")
-                except Exception:
-                    status[t] = "منجز"  # صفحةٌ لم تعد موجودة
+                except Exception as e:
+                    # (مراجعة ١٧ نوفمبر ٢٠٢٦) لا يُعدّ الالتزام منتهيًا إلّا إن قال Notion إنّ الصفحة غير موجودة؛
+                    # وانقطاع الشبكة أو تجاوز حدّ الطلبات يؤجّل الحذف إلى الساعة التالية، فلا يضيع صوتٌ بخطأٍ عابر.
+                    status[t] = "منجز" if getattr(e, "code", "") == "object_not_found" else "؟"
         if targets:
             if not all(status[t] in DONE for t in targets):
                 continue

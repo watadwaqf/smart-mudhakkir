@@ -7,7 +7,8 @@
 - «حفظ:<معرّف>» (مراجعة) ← آخر مراجعة = اليوم، وعدد المراجعات + ١، والفاصل = الدرجة التالية من ١، ٣، ٧، ١٤، ٣٠، ٦٠، والمراجعة القادمة = اليوم + الفاصل.
 - «ثابت:<معرّف>:<التاريخ>» ← صفٌّ في «سجلّ المتكرّر» (إن وصل إليه المفتاح)، بعد البحث بالمفتاح لئلّا يتكرّر.
 - ما لا يصل إليه المفتاح، وكلّ مفتاحٍ آخر، يُطبع LEFT ويتركه للوكيل.
-كلّ ما نُقل يُكتب في state/recorded-<اليوم>.txt، فلا يُنقل مرّتين.
+كلّ ما نُقل يُكتب في state/recorded-<يوم إنجازه>.txt، فلا يُنقل مرّتين. وما عُلِّم في الأيّام السبعة الماضية ولم يُنقل
+(ماكٌ مغلق، أو تعليمٌ قرب منتصف الليل) يُنقل بيوم إنجازه، فلا تضيع علامة. وما مضى عليه ٣٠ يومًا من هذه الملفّات يُحذف.
 ثمّ يزامن القائمة من صفحة «قائمة اليوم (للماك)» (config.json ← pages.today_list) إن تغيّر version وكان date اليوم (state/list_version).
 - الالتزام «عاجل» الذي لم يُنجز ولا وقت له في القائمة: يُوقَّت تنبيهه بعد urgent.delay_minutes من أوّل ظهوره في القائمة
   (ولا قبل urgent.earliest صباحًا)، ويُكتب أوّل اسمه «عاجل»، ويُحفظ وقته في state/urgent_alerts.json فلا يرنّ مرّةً ثانية
@@ -194,6 +195,9 @@ def patch(tok, path, body):
     return j
 
 
+WINDOW_DAYS = 7  # مراجعة ١٧ نوفمبر ٢٠٢٦: كانت العلامة تضيع إن لم يُنقل البند في يوم إنجازه
+
+
 def local_day(iso):
     if not iso:
         return None
@@ -201,6 +205,8 @@ def local_day(iso):
 
 
 def main():
+    if not mc.single("marks"):
+        print("MARKS BUSY: جولةٌ أخرى تنقل العلامات الآن"); return 0
     tok = mc.token()
     if not tok:
         print("MARKS NO-KEY")
@@ -210,31 +216,48 @@ def main():
     recorded = set()
     if os.path.exists(rec_path):
         recorded = {l.strip() for l in open(rec_path, encoding="utf-8") if l.strip()}
+    # المنقول يُعرف بمفتاحه ويوم إنجازه معًا، فالبند الثابت الذي يتكرّر كلّ يوم لا يُخلط بأمسه.
+    done_on = {}
+    for back in range(WINDOW_DAYS + 1):
+        dd = today - timedelta(days=back)
+        pth = os.path.join(STATE, f"recorded-{dd.isoformat()}.txt")
+        if os.path.exists(pth):
+            done_on[dd] = {l.strip() for l in open(pth, encoding="utf-8") if l.strip()}
+    old = (today - timedelta(days=30)).isoformat()
+    for fn in os.listdir(STATE):
+        if fn.startswith("recorded-") and fn.endswith(".txt") and fn[9:19] < old:
+            try:
+                os.remove(os.path.join(STATE, fn))
+            except OSError:
+                pass
     r = C.osa("reminders.js", "read", timeout=120)
     items = json.loads(r.stdout)
 
     new_rec, done, silent, manual, left, fail = [], 0, 0, 0, 0, 0
     for it in items:
         key, title = it.get("key"), (it.get("title") or "").strip()
-        if it.get("completed") and key and key not in recorded and local_day(it.get("completionDate")) == today:
+        cday = local_day(it.get("completionDate")) if it.get("completed") else None
+        if it.get("completed") and not cday:
+            cday = today  # معلَّمٌ بلا تاريخ إنجاز: يُعدّ من اليوم
+        if cday and key and today - timedelta(days=WINDOW_DAYS) <= cday <= today and key not in done_on.get(cday, set()):
             if key.startswith("التزام:"):
                 pid = key.split(":", 1)[1]
                 try:
                     if not DRY:
                         patch(tok, "pages/" + pid, {"properties": {
                             "الحال": {"status": {"name": "منجز"}},
-                            "أُنجز في": {"date": {"start": today.isoformat()}}}})
+                            "أُنجز في": {"date": {"start": cday.isoformat()}}}})
                     print("DONE", key, title)
-                    new_rec.append(key); done += 1
+                    new_rec.append((cday, key)); done += 1
                 except Exception as e:
                     print("FAIL", key, e); fail += 1
             elif key.startswith(SILENT):
-                new_rec.append(key); silent += 1
+                new_rec.append((cday, key)); silent += 1
             elif key.startswith(("حفظ:", "ثابت:")):
                 try:
-                    info = do_memory(tok, key.split(":", 1)[1], today) if key.startswith("حفظ:") else do_fixed(tok, key)
+                    info = do_memory(tok, key.split(":", 1)[1], cday) if key.startswith("حفظ:") else do_fixed(tok, key)
                     print("DONE", key, title, "—", info)
-                    new_rec.append(key); done += 1
+                    new_rec.append((cday, key)); done += 1
                 except Exception as e:
                     print("LEFT", key, title, "—", e); left += 1
             else:
@@ -251,13 +274,14 @@ def main():
                         "الحال": {"select": {"name": "جديد"}},
                         "ملاحظة الوكيل": {"rich_text": [{"text": {"content": MANUAL_NOTE}}]}}})
                 print("MANUAL", title, "(موجود من قبل)" if found else "")
-                new_rec.append(title); manual += 1
+                new_rec.append((today, title)); manual += 1
             except Exception as e:
                 print("FAIL", "يدوي:", title, e); fail += 1
 
     if new_rec and not DRY:
-        with open(rec_path, "a", encoding="utf-8") as f:
-            f.write("".join(k + "\n" for k in new_rec))
+        for dd in sorted({x for x, _ in new_rec}):
+            with open(os.path.join(STATE, f"recorded-{dd.isoformat()}.txt"), "a", encoding="utf-8") as f:
+                f.write("".join(k + "\n" for x, k in new_rec if x == dd))
     try:
         print("SYNC", sync_list(tok, today))
     except Exception as e:

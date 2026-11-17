@@ -15,6 +15,17 @@ PROMPT=""
 [[ -f "$MUD_GLOSSARY" ]] && PROMPT="$(cat "$MUD_GLOSSARY")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# قفل (مراجعة ١٧ نوفمبر ٢٠٢٦): تفريغ تسجيلٍ طويل مرّتين قد يتجاوز عشر دقائق، فلا تبدأ جولةٌ ثانية تفرّغ الملفّ نفسه.
+# والقفل الذي مضت عليه ساعتان يُعدّ عالقًا (جولةٌ انقطعت) فيُزال.
+LOCKDIR="${MUD_STATE:-$BASE/state}/transcribe.lock"
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+  if [[ -n "$(find "$LOCKDIR" -maxdepth 0 -mmin +120 2>/dev/null)" ]]; then
+    rm -rf "$LOCKDIR"; mkdir "$LOCKDIR" 2>/dev/null || { echo "BUSY"; exit 0; }
+  else
+    echo "BUSY: جولةٌ أخرى تفرّغ الآن"; exit 0
+  fi
+fi
+trap 'rm -rf "$TMP" "$LOCKDIR"' EXIT
 
 [[ -f "$MODEL" ]] || { echo "ERROR: النموذج غير موجود: $MODEL"; exit 1; }
 mkdir -p "$DIR"

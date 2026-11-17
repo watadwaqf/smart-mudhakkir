@@ -140,20 +140,29 @@ function run(argv) {
       const body = bodyOf(it);
       const same = snap.filter(x => x.key === it.key);
       if (same.some(x => x.done)) { skipped++; return; }
+      // لا يُمسّ البند إلّا بما تغيّر، ولا يُعاد ضبط تنبيهه إلّا إلى وقتٍ جديدٍ في المستقبل:
+      // إعادة ضبطه في كلّ جولة (ومنه «بعد دقيقة» لموعدٍ قريب) كانت تُرنّه مرّةً كلّ عشر دقائق.
+      const now = new Date();
       if (same.length) {
         const r = byId(same[0].id);
-        r.name = name; r.body = body;
-        if (it.time) { r.dueDate = new Date(it.time); r.remindMeDate = new Date(it.time); }
-        updated++;
+        let ch = false;
+        if (r.name() !== name) { r.name = name; ch = true; }
+        if ((r.body() || '') !== body) { r.body = body; ch = true; }
+        if (it.time) {
+          const t = new Date(it.time); let old = null; try { old = r.remindMeDate(); } catch (e) {}
+          if (t > now && (!old || new Date(old).getTime() !== t.getTime())) { r.dueDate = t; r.remindMeDate = t; ch = true; }
+        }
+        if (ch) updated++; else skipped++;
       } else {
         const props = { name: name, body: body };
-        if (it.time) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
+        if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
+        else if (it.time && now - new Date(it.time) < 30 * 60000) { const t = new Date(now.getTime() + 60000); props.dueDate = t; props.remindMeDate = t; }
         else props.alldayDueDate = today;
         list.reminders.push(app.Reminder(props));
         added++;
       }
     });
-    return JSON.stringify({ added: added, updated: updated, skipped_completed: skipped });
+    return JSON.stringify({ added: added, updated: updated, unchanged_or_done: skipped });
   }
 
   if (cmd === 'remove') {

@@ -170,10 +170,18 @@ def main():
     changed = [L for L in lists if prev.get(L["name"]) != L["items"]]
     path = os.path.join(STATE, "horizons.json")
     open(path, "w", encoding="utf-8").write(json.dumps({"lists": changed}, ensure_ascii=False))
-    r = C.osa("horizons.js", "replace", path, timeout=900)
+    # الاستبدال الكامل (ترتيبٌ جديد) أوّل جولةٍ بعد منتصف الليل فقط، وفي النهار تحديثٌ تدريجيّ يحفظ معرّفات البنود،
+    # فلا يبقى في ويدجت الجوّال بندٌ زائل يومض التعليم عليه ولا يثبت.
+    fpath = os.path.join(STATE, "horizons_full_date")
+    mode = "replace" if FORCE or not os.path.exists(fpath) or open(fpath).read().strip() != today.isoformat() else "sync"
+    if mode == "replace":
+        open(path, "w", encoding="utf-8").write(json.dumps({"lists": lists}, ensure_ascii=False))
+    r = C.osa("horizons.js", mode, path, timeout=900)
     if r.returncode != 0:
         print("HORIZONS FAIL", (r.stderr or r.stdout).strip()[:200]); return 1
     open(hpath, "w").write(h)
+    if mode == "replace":
+        open(fpath, "w").write(today.isoformat())
     json.dump({L["name"]: L["items"] for L in lists}, open(prev_path, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"HORIZONS {counts} written periodic={periodic} shown={sum(SYNCED)}/{len(SYNCED)} done={harvested}")
     return 0

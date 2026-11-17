@@ -1,0 +1,15 @@
+config.json
+mac/config.json
+state/
+mac/state/
+*.m4a
+*.oga
+models/
+mac/models/
+mac/private_words.txt
+mac/glossary.txt
+.DS_Store
+__pycache__/
+*.shortcut
+mac/telegram/
+mac/voicememos/

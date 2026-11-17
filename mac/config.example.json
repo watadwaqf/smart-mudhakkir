@@ -1,0 +1,147 @@
+{
+  "owner_title": "صاحب النظام",
+
+  "keychain": {
+    "notion": "mudhakkir-notion",
+    "telegram": "mudhakkir-telegram"
+  },
+
+  "db": {
+    "inbox": "<inbox-database-id>",
+    "commitments": "<commitments-database-id>",
+    "questions": "<questions-database-id>",
+    "people": "<people-database-id>",
+    "roles": "<roles-database-id>",
+    "fixed": "<fixed-schedule-database-id>",
+    "periodic": "<periodic-database-id>",
+    "memory": "<memorization-database-id>",
+    "recurring_log": "<recurring-log-database-id>",
+    "ideas": "<idea-bank-database-id>",
+    "project_notes": "<project-notes-database-id>",
+    "achievements": "<achievements-database-id>"
+  },
+
+  "data_sources": {
+    "inbox": "<inbox-collection-id>",
+    "commitments": "<commitments-collection-id>",
+    "questions": "<questions-collection-id>",
+    "people": "<people-collection-id>",
+    "roles": "<roles-collection-id>",
+    "fixed": "<fixed-schedule-collection-id>",
+    "periodic": "<periodic-collection-id>",
+    "memory": "<memorization-collection-id>",
+    "recurring_log": "<recurring-log-collection-id>",
+    "ideas": "<idea-bank-collection-id>",
+    "project_notes": "<project-notes-collection-id>",
+    "achievements": "<achievements-collection-id>"
+  },
+
+  "pages": {
+    "constitution": "<constitution-page-id>",
+    "roles_guide": "<roles-guide-page-id>",
+    "about_you": "<what-i-know-about-you-page-id>",
+    "today_list": "<today-list-for-mac-page-id>",
+    "analyst_report": "<analyst-report-page-id>",
+    "evolution_log": "<evolution-log-page-id>"
+  },
+
+  "apple": {
+    "reminders_list": "المذكّر",
+    "calendar_name": "المذكّر"
+  },
+
+  "location": {
+    "city": "مكّة المكرّمة",
+    "lat": 21.4225,
+    "lon": 39.8262,
+    "tz_offset": 3,
+    "fajr_angle": 18.5,
+    "isha_angle": 18.0,
+    "isha_minutes_after_maghrib": 90,
+    "asr": "standard"
+  },
+
+  "roles": [
+    {"name": "العمل", "icon": "💼", "page_id": "<role-page-id>", "keywords": ["اجتماع", "تقرير", "المدير", "العميل"]},
+    {"name": "التدريس", "icon": "🎓", "page_id": "<role-page-id>", "keywords": ["محاضرة", "اختبار", "رصد", "الفصل الدراسيّ"]},
+    {"name": "الأسرة", "icon": "🏠", "page_id": "<role-page-id>", "keywords": ["مدارس", "كسوة", "سفرة", "عيد"]},
+    {"name": "الوالدان", "icon": "👪", "page_id": "<role-page-id>", "keywords": ["الوالد", "الوالدة"]},
+    {"name": "الصحة", "icon": "🩺", "page_id": "<role-page-id>", "keywords": ["طبيب", "تحاليل", "دواء", "رياضة"]},
+    {"name": "العلم والتأليف", "icon": "📚", "page_id": "<role-page-id>", "keywords": ["حفظ", "مراجعة", "بحث", "فائدة"]},
+    {"name": "المشاريع التقنية", "icon": "💻", "page_id": "<role-page-id>", "keywords": ["التطبيق", "GitHub", "Apple Developer"]},
+    {"name": "شخصي", "icon": "👤", "page_id": "<role-page-id>", "keywords": ["تجديد", "اشتراك", "جواز", "رخصة"]}
+  ],
+
+  "health_keywords": ["دواء", "حبّة", "حبة", "إبرة", "فيتامين", "قطرة", "كالسيوم"],
+
+  "external_prefixes": [],
+
+  "households": {
+    "enabled": false,
+    "by_day": {
+      "السبت": "البيت أ", "الإثنين": "البيت أ", "الأربعاء": "البيت أ",
+      "الأحد": "البيت ب", "الثلاثاء": "البيت ب", "الخميس": "البيت ب"
+    },
+    "alternating": [
+      {"day": "الجمعة", "anchor": "2026-01-02", "even": "ص البيت أ · م البيت ب", "odd": "ص البيت ب · م البيت أ"}
+    ]
+  },
+
+  "paths": {
+    "state": "state",
+    "models": "models",
+    "glossary": "glossary.txt",
+    "telegram_audio": "telegram",
+    "voicememos_out": "voicememos",
+    "recordings": "~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/المذكّر/تسجيلات",
+    "voice_memos_app": "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings"
+  },
+
+  "whisper": {
+    "bin": "/opt/homebrew/bin/whisper-cli",
+    "ffmpeg": "/opt/homebrew/bin/ffmpeg",
+    "model": "ggml-large-v3.bin",
+    "language": "ar",
+    "threads": 8
+  },
+
+  "voice_memos": {
+    "enabled": true,
+    "cutoff_utc": "2026-01-01 00:00:00"
+  },
+
+  "telegram": {
+    "enabled": false,
+    "owner_id": "",
+    "ack": false
+  },
+
+  "shortcuts": {
+    "key_shortcut_name": "مفتاح المذكّر",
+    "key_shortcut_id": "",
+    "questions_shortcut_name": "أسئلة المذكّر",
+    "recordings_folder": "المذكّر/تسجيلات/"
+  },
+
+  "questions": {
+    "after_prayer_minutes": 20,
+    "fresh_minutes": 20
+  },
+
+  "urgent": {
+    "delay_minutes": 10,
+    "earliest": "07:30"
+  },
+
+  "audio": {
+    "enabled": true,
+    "keep_days_unlinked": 7
+  },
+
+  "projects": {
+    "stall_days": 14,
+    "projects": [
+      {"name": "مشروعي الأوّل", "paths": ["~/code/my-app"], "watch": true}
+    ]
+  }
+}

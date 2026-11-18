@@ -143,6 +143,29 @@ def mark_urgent(tok, items, today):
     return n
 
 
+KIND_ICON = {"تصحيح": "🐞", "تحسين": "✨", "ملاحظة مستخدم": "💬", "فكرة": "💡"}
+
+
+def project_notes(tok, items):
+    if not C.has_db("project_notes"):
+        return
+    import re
+    for it in items:
+        m = re.search(r"ملاحظات «([^»]+)»", it.get("title") or "")
+        if not m or "\n• " in (it.get("notes") or ""):
+            continue
+        rows = mc.query_all(tok, C.db("project_notes"), {"filter": {"and": [
+            {"property": "المشروع", "select": {"equals": m.group(1)}},
+            {"or": [{"property": "الحال", "select": {"equals": "جديدة"}}, {"property": "الحال", "select": {"equals": "قيد العمل"}}]}]},
+            "sorts": [{"property": "التاريخ", "direction": "descending"}]})
+        if not rows:
+            continue
+        lines = [f"• {KIND_ICON.get(mc.prop(r, 'النوع'), '•')} {mc.prop(r, 'الملاحظة')}" for r in rows[:15]]
+        if len(rows) > 15:
+            lines.append(f"و{len(rows) - 15} غيرها في «ملاحظات المشاريع»")
+        it["notes"] = ((it.get("notes") or "") + "\n\n" + "\n".join(lines)).strip()
+
+
 def sync_list(tok, today):
     blocks = mc.notion(tok, f"blocks/{C.page('today_list')}/children?page_size=100")["results"]
     code = next((b for b in blocks if b["type"] == "code"), None)
@@ -166,6 +189,12 @@ def sync_list(tok, today):
         cid = k.split(":", 1)[1].replace("-", "") if k.startswith("التزام:") else ""
         if cid in links and "🎧" not in (it.get("notes") or ""):
             it["notes"] = ((it.get("notes") or "") + "\n🎧 اسمع كلامك: " + links[cid]).strip()
+    # تفاصيل «العمل على ملاحظات «المشروع»»: البند يقول عدد الملاحظات فقط، والملاحظات نفسها في مخزن «ملاحظات المشاريع».
+    # فتُكتب في ملاحظة البند نفسه، فتُقرأ من التذكير دون فتح Notion. (يحتاج المخزنُ اتّصالَ تكامل الماك.)
+    try:
+        project_notes(tok, items)
+    except Exception as e:
+        print("NOTES FAIL", str(e)[:120])
     try:
         urg = mark_urgent(tok, items, today)
     except Exception as e:  # لا تُعطَّل المزامنة إن تعذّر الاستعلام
@@ -173,7 +202,7 @@ def sync_list(tok, today):
     tmp = os.path.join(STATE, "sync_items.json")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"items": items}, f, ensure_ascii=False)
-    r = C.osa("reminders.js", "sync", tmp, timeout=180)
+    r = C.osa("reminders.js", "sync", tmp, timeout=900)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[:200])
     with open(vpath, "w", encoding="utf-8") as f:
@@ -230,7 +259,7 @@ def main():
                 os.remove(os.path.join(STATE, fn))
             except OSError:
                 pass
-    r = C.osa("reminders.js", "read", timeout=120)
+    r = C.osa("reminders.js", "read", timeout=900)
     items = json.loads(r.stdout)
 
     new_rec, done, silent, manual, left, fail = [], 0, 0, 0, 0, 0

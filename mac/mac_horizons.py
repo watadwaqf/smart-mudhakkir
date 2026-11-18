@@ -116,7 +116,8 @@ def harvest(tok, today):
         return 0
     jsf = os.path.join(STATE, "harvest.js")
     open(jsf, "w", encoding="utf-8").write(HARVEST_JS)
-    r = subprocess.run(["osascript", "-l", "JavaScript", jsf], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([os.path.join(H, "osa"), "-l", "JavaScript", jsf], capture_output=True, text=True, timeout=900,
+                       env=dict(os.environ, MUD_OSA_LOCK=os.path.join(STATE, "osa.lock")))
     try:
         done = json.loads(r.stdout or "[]")
     except Exception:

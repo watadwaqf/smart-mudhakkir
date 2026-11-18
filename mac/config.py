@@ -139,14 +139,19 @@ def reminders_args():
     out = ["--list=" + cfg["apple"]["reminders_list"]]
     if cfg["external_prefixes"]:
         out.append("--keep=" + ",".join(cfg["external_prefixes"]))
+    pages = int(cfg["apple"].get("pages", 3) or 1)
+    if pages > 1:  # صفحات اليوم: القائمة ثمّ «… ٢» ثمّ «… ٣»، في كلٍّ page_size بندًا
+        out += [f"--pages={pages}", f"--cap={int(cfg['apple'].get('page_size', 12))}"]
     return out
 
 
 def osa(script, *args, timeout=900, reminders=None):
     """يشغّل سكربت JXA من هذا المجلّد. reminders.js يأخذ اسم القائمة والبادئات تلقائيًّا."""
     extra = reminders_args() if (reminders if reminders is not None else script == "reminders.js") else []
-    r = subprocess.run(["osascript", "-l", "JavaScript", os.path.join(HERE, script), *args, *extra],
-                       capture_output=True, text=True, timeout=timeout)
+    # عبر القفل الموحّد (mac/osa): أوامر «التذكيرات» و«التقويم» تتوالى ولا تتزاحم
+    r = subprocess.run([os.path.join(HERE, "osa"), "-l", "JavaScript", os.path.join(HERE, script), *args, *extra],
+                       capture_output=True, text=True, timeout=timeout,
+                       env=dict(os.environ, MUD_OSA_LOCK=os.path.join(STATE, "osa.lock")))
     return r
 
 

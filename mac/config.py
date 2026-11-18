@@ -151,7 +151,7 @@ def osa(script, *args, timeout=900, reminders=None):
     # عبر القفل الموحّد (mac/osa): أوامر «التذكيرات» و«التقويم» تتوالى ولا تتزاحم
     r = subprocess.run([os.path.join(HERE, "osa"), "-l", "JavaScript", os.path.join(HERE, script), *args, *extra],
                        capture_output=True, text=True, timeout=timeout,
-                       env=dict(os.environ, MUD_OSA_LOCK=os.path.join(STATE, "osa.lock")))
+                       env=dict(os.environ, MUD_OSA_LOCK=os.path.join(STATE, "osa.lock"), MUD_STATE=STATE))
     return r
 
 

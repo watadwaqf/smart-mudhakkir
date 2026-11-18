@@ -18,7 +18,18 @@ const REF = 'مرجع: ';
 // العنوان قصيرٌ ليُقرأ كاملًا في الويدجت: النافذة رمز، والدور في الملاحظة لا في العنوان.
 const WIN = { 'بعد الفجر': '🌅', 'بعد الظهر': '☀️', 'بعد العصر': '🌇', 'بعد العشاء': '🌙', 'بين العشاءين': '🕌', 'عاجل': '❗', 'سؤال': '❓' };
 function nameOf(it) { const w = it.window ? (WIN[it.window] || it.window) + ' ' : ''; return w + it.title; }
-function bodyOf(it) { return (it.role ? it.role + (it.notes ? ' · ' : '') : '') + (it.notes ? it.notes : '') + ((it.role || it.notes) ? '\n\n' : '') + REF + it.key; }
+// الملاحظة سطرٌ مفيد أو لا شيء: لا دور ولا «مرجع:» فيها. والمرجع (مفتاح البند في Notion) يُحفظ في جدولٍ عند الماك
+// (<state>/remkeys.json: معرّف التذكير ← المفتاح)، وما بقي فيه سطر «مرجع:» من قبل يُقرأ منه مرّةً ويُنقل إلى الجدول.
+// ومسار الحالة من MUD_STATE (يمرّره config.py ← osa).
+function bodyOf(it) { return it.notes ? String(it.notes).trim() : ''; }
+const ENV = $.NSProcessInfo.processInfo.environment;
+const STATE_DIR = ENV.objectForKey('MUD_STATE').isNil() ? $('~/.smart-mudhakkir').stringByExpandingTildeInPath.js : ENV.objectForKey('MUD_STATE').js;
+const MAPFILE = STATE_DIR + '/remkeys.json';
+let MAP = null;
+function loadMap() { if (MAP) return MAP; try { MAP = JSON.parse($.NSString.stringWithContentsOfFileEncodingError(MAPFILE, $.NSUTF8StringEncoding, null).js) || {}; } catch (e) { MAP = {}; } return MAP; }
+function saveMap() { if (!MAP) return; $.NSFileManager.defaultManager.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(STATE_DIR, true, $(), null); $(JSON.stringify(MAP)).writeToFileAtomicallyEncodingError(MAPFILE, true, $.NSUTF8StringEncoding, null); }
+function keyOf(id, body) { const m = loadMap(); if (m[id]) return m[id]; const k = refOf(body); if (k) m[id] = k; return k; }
+function pushItem(app, list, props, key) { const r = app.Reminder(props); list.reminders.push(r); loadMap()[r.id()] = String(key); return r; }
 
 function readFile(p) {
   return $.NSString.stringWithContentsOfFileEncodingError(p, $.NSUTF8StringEncoding, null).js;
@@ -59,7 +70,7 @@ function pagedRun(app, cmd, argv) {
     let dates, alarms;
     try { dates = l.reminders.completionDate(); } catch (e) { dates = ids.map(() => null); }
     try { alarms = l.reminders.remindMeDate(); } catch (e) { alarms = ids.map(() => null); }
-    ids.forEach((id, i) => all.push({ li: li, id: id, name: names[i], body: bodies[i] || '', key: refOf(bodies[i]), done: dones[i], date: dates[i] ? new Date(dates[i]) : null, alarm: alarms[i] }));
+    ids.forEach((id, i) => all.push({ li: li, id: id, name: names[i], body: bodies[i] || '', key: keyOf(id, bodies[i]), done: dones[i], date: dates[i] ? new Date(dates[i]) : null, alarm: alarms[i] }));
   });
   if (cmd === 'read') {
     return JSON.stringify(all.map(x => ({ key: x.key, title: x.name, completed: x.done,
@@ -104,14 +115,16 @@ function pagedRun(app, cmd, argv) {
     const props = { name: name, body: body };
     if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
     else props.alldayDueDate = today;
-    lists[li].reminders.push(app.Reminder(props)); added++;
+    pushItem(app, lists[li], props, k); added++;
     open[k] = { li: li };
   });
   const pages = PAGES.map((_, i) => fixed[i] + Object.values(open).filter(o => o.li === i).length);
   return JSON.stringify({ removed: removed, added: added, moved: moved, updated: updated, kept: kept, pages: pages });
 }
 
-function run(argv) {
+function run(argv) { try { return runInner(argv); } finally { saveMap(); } }
+
+function runInner(argv) {
   argv = argv.map(String);
   const li = argv.findIndex(a => a.startsWith('--list='));
   if (li >= 0) { LIST = argv[li].slice(7); }
@@ -129,13 +142,14 @@ function run(argv) {
 
   if (cmd === 'read') {
     // قراءةٌ دفعةً واحدة لكلّ خاصّيّة: سؤال التطبيق عن كلّ بندٍ على حدة كان يعلق
+    const ids = list.reminders.id();
     const names = list.reminders.name();
     const bodies = list.reminders.body();
     const dones = list.reminders.completed();
     let dates;
     try { dates = list.reminders.completionDate(); } catch (e) { dates = names.map(() => null); }
     const out = names.map((n, i) => ({
-      key: refOf(bodies[i]),
+      key: keyOf(ids[i], bodies[i]),
       title: n,
       completed: dones[i],
       completionDate: dones[i] && dates[i] ? new Date(dates[i]).toISOString() : null,
@@ -150,7 +164,7 @@ function run(argv) {
     const dones = list.reminders.completed();
     let dates;
     try { dates = list.reminders.completionDate(); } catch (e) { dates = ids.map(() => null); }
-    return ids.map((id, i) => ({ id: id, key: refOf(bodies[i]), done: dones[i], date: dates[i] ? new Date(dates[i]) : null }));
+    return ids.map((id, i) => ({ id: id, key: keyOf(id, bodies[i]), done: dones[i], date: dates[i] ? new Date(dates[i]) : null }));
   }
   const byId = id => app.reminders.byId(id);
 
@@ -195,7 +209,7 @@ function run(argv) {
       const props = { name: name, body: body };
       if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
       else props.alldayDueDate = today;
-      list.reminders.push(app.Reminder(props));
+      pushItem(app, list, props, it.key);
       added++;
     });
     // بند «أسئلة:…» يديره mac_calendar.py، وبنود البادئات الخارجيّة (--keep) تديرها أداتها، فلا تُحذف هنا
@@ -236,7 +250,7 @@ function run(argv) {
         if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
         else if (it.time && now - new Date(it.time) < 30 * 60000) { const t = new Date(now.getTime() + 60000); props.dueDate = t; props.remindMeDate = t; }
         else props.alldayDueDate = today;
-        list.reminders.push(app.Reminder(props));
+        pushItem(app, list, props, it.key);
         added++;
       }
     });

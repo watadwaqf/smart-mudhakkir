@@ -143,6 +143,61 @@ def mark_urgent(tok, items, today):
     return n
 
 
+BAD_NOTE = ("افتراض", "من الجدول الثابت", "هدفٌ لا موعد", "يبدأ التذكير", "بدء التذكير", "الموعد لم يُحدَّد", "وقتك بجوابك")
+
+
+def clean_notes(n):
+    """ملاحظة التذكير سطرٌ مفيد أو لا شيء: يُحذف ما كتبه الوكيل لنفسه
+    (الافتراضات، وشرح النظام)، ويبقى جزآن قصيران على الأكثر، وأسطر «🎧» و«•» كما هي."""
+    import re
+    if not n:
+        return ""
+    lines = [l.strip() for l in str(n).split("\n") if l.strip()]
+    keep = [l for l in lines if l.startswith(("•", "🎧"))]
+    segs = []
+    for l in lines:
+        if l.startswith(("•", "🎧")):
+            continue
+        for g in re.split(r"\s*·\s*", l):
+            g = re.sub(r"\s*\([^)]*افتراض[^)]*\)", "", g).strip(" .،")
+            if g and not any(b in g for b in BAD_NOTE):
+                segs.append(g)
+    out = " · ".join(segs[:2])
+    if len(out) > 90:
+        out = out[:88].rstrip() + "…"
+    return "\n".join(x for x in [out] + keep if x)
+
+
+def tidy(items, today):
+    """بند القراءة يصير تذكيرين: المغرب وحده بعد العصر، والعشاء وحده بين العشاءين،
+    ومقطعا الركعتين في العنوان نفسه، لأنّ الويدجت لا يعرض الملاحظة. ثمّ تُنظَّف ملاحظات البنود كلّها."""
+    import re
+    out = []
+    for it in items:
+        k = str(it.get("key", ""))
+        if k.startswith("قراءة:") and k.count(":") == 1 and "المغرب:" in (it.get("notes") or ""):
+            parts = dict(re.findall(r"(المغرب|العشاء):\s*([^\n]+)", it["notes"]))
+            try:
+                pt = json.loads(subprocess.run([sys.executable, "-I", os.path.join(H, "prayer_times.py"), today.isoformat()],
+                                               capture_output=True, text=True).stdout)
+                isha_t = f"{today.isoformat()}T" + (datetime.strptime(pt["المغرب"], "%H:%M") + timedelta(minutes=20)).strftime("%H:%M") + ":00" + C.tz_suffix()
+            except Exception:
+                isha_t = None
+            for name, window, t in (("المغرب", it.get("window") or "بعد العصر", it.get("time")), ("العشاء", "بين العشاءين", isha_t)):
+                txt = parts.get(name)
+                if not txt:
+                    continue
+                note = " ".join(re.findall(r"\([^)]*\)", txt))
+                passage = re.sub(r"\s*\([^)]*\)", "", txt).replace(" / ", " · ").strip()
+                out.append({"key": f"قراءة:{'مغرب' if name == 'المغرب' else 'عشاء'}:{today.isoformat()}", "window": window,
+                            "title": f"قراءة {name}: {passage}", "role": "", "notes": note, **({"time": t} if t else {})})
+            continue
+        it["notes"] = clean_notes(it.get("notes"))
+        it["role"] = ""
+        out.append(it)
+    items[:] = out
+
+
 KIND_ICON = {"تصحيح": "🐞", "تحسين": "✨", "ملاحظة مستخدم": "💬", "فكرة": "💡"}
 
 
@@ -189,6 +244,7 @@ def sync_list(tok, today):
         cid = k.split(":", 1)[1].replace("-", "") if k.startswith("التزام:") else ""
         if cid in links and "🎧" not in (it.get("notes") or ""):
             it["notes"] = ((it.get("notes") or "") + "\n🎧 اسمع كلامك: " + links[cid]).strip()
+    tidy(items, today)
     # تفاصيل «العمل على ملاحظات «المشروع»»: البند يقول عدد الملاحظات فقط، والملاحظات نفسها في مخزن «ملاحظات المشاريع».
     # فتُكتب في ملاحظة البند نفسه، فتُقرأ من التذكير دون فتح Notion. (يحتاج المخزنُ اتّصالَ تكامل الماك.)
     try:

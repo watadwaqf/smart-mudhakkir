@@ -260,7 +260,9 @@ def sync_list(tok, today):
         json.dump({"items": items}, f, ensure_ascii=False)
     # صفحات اليوم (٢١ نوفمبر ٢٠٢٦): في أوّل مزامنةٍ من اليوم تُعاد البنود كلّها بترتيب الوقت، وفي النهار يدخل الجديد صفحة نافذته
     ppath = os.path.join(STATE, "pages_date")
-    rebal = not os.path.exists(ppath) or open(ppath).read().strip() != today.isoformat()
+    # موقوف: إعادة إنشاء البنود تُبقي في ويدجت الجوّال نسخها القديمة حتّى يُفتح التطبيق، فيُعلَّم بندٌ زائل فيرتدّ (الدرس ٢٣).
+    # والبند الجديد يدخل صفحة نافذته، فتبقى الصفحات بأوقاتها بلا نقل. ويبقى --rebalance في reminders.js للتشغيل اليدويّ.
+    rebal = False
     r = C.osa("reminders.js", "sync", tmp, *(["--rebalance"] if rebal else []), timeout=1800)
     if r.returncode == 0 and rebal:
         open(ppath, "w").write(today.isoformat())

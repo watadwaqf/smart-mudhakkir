@@ -54,7 +54,10 @@ function run(argv) {
                                 : (!ev.alldayEvent() && ev.startDate().getTime() === start.getTime() && ev.endDate().getTime() === end.getTime());
       const same = sameTime && ev.summary() === e.title && ev.description() === desc;
       if (same) { kept++; return; }
-      ev.summary = e.title; ev.alldayEvent = !!e.allday; ev.startDate = start; ev.endDate = end; ev.description = desc;
+      ev.summary = e.title; ev.alldayEvent = !!e.allday;
+      // نقل الحدث إلى ما بعد نهايته القديمة: تُضبط النهاية أوّلًا، وإلّا رفض «التقويم» بدايةً بعد النهاية فتعطّلت المزامنة كلّها (٢١ نوفمبر ٢٠٢٦)
+      if (start.getTime() >= ev.endDate().getTime()) { ev.endDate = end; ev.startDate = start; } else { ev.startDate = start; ev.endDate = end; }
+      ev.description = desc;
       updated++;
     } else {
       cal.events.push(app.Event({ summary: e.title, startDate: start, endDate: end, alldayEvent: !!e.allday, description: desc }));

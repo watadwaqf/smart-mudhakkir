@@ -62,7 +62,7 @@ function rankOf(it) {
   return 3;
 }
 
-function pagedRun(app, cmd, argv) {
+function pagedRun(app, cmd, argv, rebalance) {
   const lists = PAGES.map(n => { const f = app.lists.whose({ name: n }); if (f.length > 0) return f[0]; app.lists.push(app.List({ name: n })); return app.lists.whose({ name: n })[0]; });
   const all = [];
   lists.forEach((l, li) => {
@@ -92,32 +92,52 @@ function pagedRun(app, cmd, argv) {
   });
   const open = {}; const fixed = PAGES.map(() => 0);
   all.forEach(x => { if (x.done || x.gone) return; if (x.key && !keep(x.key)) open[x.key] = x; else fixed[x.li]++; });
-  // الصفحة المستهدفة لكلّ بند: بالترتيب، اثنا عشر في كلّ صفحة (مع ما فيها من بنودٍ ليست للوكيل كبند الأسئلة)
-  const load = fixed.slice();
-  const target = {};
-  items.forEach(it => { const k = String(it.key); if (doneToday.has(k)) return;
-    let li = load.findIndex(n => n < CAP); if (li < 0) li = PAGES.length - 1; target[k] = li; load[li]++; });
-  items.forEach(it => {
-    const k = String(it.key);
-    if (!(k in target)) return;
-    const name = nameOf(it), body = bodyOf(it); let cur = open[k];
-    // في النهار لا يُنقل بندٌ قائم؛ وفي إعادة التوزيع يُنقل ما كانت صفحته غير صفحته وحده
-    // لا يُنقل بندٌ قائم أبدًا (١٨ نوفمبر ٢٠٢٦): نقل البنود صباحًا تجاوز ساعةً في «التذكيرات» فتعطّلت المزامنة. والجديد يُوضع في صفحته بالترتيب.
-    if (cur) {
-      let ch = false; const r = byId(cur.li, cur.id);
-      if (cur.name !== name) { r.name = name; ch = true; }
-      if (cur.body !== body) { r.body = body; ch = true; }
-      if (it.time) { const t = new Date(it.time); if (t > now && (!cur.alarm || new Date(cur.alarm).getTime() !== t.getTime())) { r.dueDate = t; r.remindMeDate = t; ch = true; } }
-      ch ? updated++ : kept++;
-      return;
-    }
-    const li = (() => { const cnt = PAGES.map((_, i) => fixed[i] + Object.values(open).filter(o => o.li === i).length); const j = cnt.findIndex(n => n < CAP); return j < 0 ? PAGES.length - 1 : j; })();
-    const props = { name: name, body: body };
-    if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
-    else props.alldayDueDate = today;
-    pushItem(app, lists[li], props, k); added++;
-    open[k] = { li: li };
-  });
+  // صفحةٌ لكلّ وقتٍ من اليوم (٢١ نوفمبر ٢٠٢٦، بطلب صاحب النظام): الأولى للعاجل وما بعد الفجر، والثانية للظهر والعصر،
+  // والثالثة لما بين العشاءين وما بعد العشاء. فإن امتلأت صفحة النافذة (CAP) فالتي بعدها، ثمّ التي قبلها.
+  // وفي النهار لا ينتقل بندٌ قائم (النقل في «التذكيرات» حذفٌ وإعادة إنشاء)، والجديد يدخل صفحة نافذته.
+  // وفي أوّل مزامنةٍ من اليوم (--rebalance، بعد أن يكتب المحلّل قائمة اليوم فجرًا) تُعاد البنود كلّها بترتيب الوقت.
+  // وعلى عدد الصفحات: الرتب الستّ تُقسم عليها بالتساوي (ثلاث صفحات: ٠و١، ٢و٣، ٤و٥)
+  const want_page = it => Math.min(PAGES.length - 1, Math.floor(rankOf(it) * PAGES.length / 6));
+  const pick = (d, cnt) => { for (let i = d; i < PAGES.length; i++) if (cnt[i] < CAP) return i;
+    for (let i = d - 1; i >= 0; i--) if (cnt[i] < CAP) return i; return d; };
+  const live = items.filter(it => !doneToday.has(String(it.key)));
+  const rankByKey = {}; live.forEach(it => { rankByKey[String(it.key)] = rankOf(it); });
+  const update = (cur, it) => {
+    let ch = false; const r = byId(cur.li, cur.id); const name = nameOf(it), body = bodyOf(it);
+    if (cur.name !== name) { r.name = name; ch = true; }
+    if (cur.body !== body) { r.body = body; ch = true; }
+    if (it.time) { const t = new Date(it.time); if (t > now && (!cur.alarm || new Date(cur.alarm).getTime() !== t.getTime())) { r.dueDate = t; r.remindMeDate = t; ch = true; } }
+    ch ? updated++ : kept++;
+  };
+  const create = (it, li, oldAlarm) => {
+    const props = { name: nameOf(it), body: bodyOf(it) };
+    const t = it.time ? new Date(it.time) : (oldAlarm ? new Date(oldAlarm) : null);
+    if (t && t > now) { props.dueDate = t; props.remindMeDate = t; } else props.alldayDueDate = today;
+    pushItem(app, lists[li], props, String(it.key));
+    open[String(it.key)] = { li: li };
+  };
+  if (rebalance) {
+    // الصفحة المستهدفة لكلّ بند، بالترتيب
+    const load = fixed.slice(); const target = {};
+    live.forEach(it => { const li = pick(want_page(it), load); target[String(it.key)] = li; load[li]++; });
+    // تُعاد البنود كلّها بالترتيب: ترتيب العرض في الويدجت هو ترتيب الإنشاء، ولا يُعرف من السكربت
+    // (ترتيب JXA غير ترتيب العرض، جُرِّب ٢١ نوفمبر ٢٠٢٦)، فلا يضمن الترتيبَ إلّا إعادةُ الإنشاء كلّها مرّةً في اليوم.
+    const stay = new Set();
+    live.forEach(it => {
+      const k = String(it.key); const cur = open[k];
+      if (cur && stay.has(k)) return update(cur, it);
+      if (cur) { try { app.delete(byId(cur.li, cur.id)); delete loadMap()[cur.id]; } catch (e) {} moved++; }
+      else added++;
+      create(it, target[k], cur && cur.alarm);
+    });
+  } else {
+    live.forEach(it => {
+      const k = String(it.key); const cur = open[k];
+      if (cur) return update(cur, it);
+      const cnt = PAGES.map((_, i) => fixed[i] + Object.values(open).filter(o => o.li === i).length);
+      create(it, pick(want_page(it), cnt)); added++;
+    });
+  }
   const pages = PAGES.map((_, i) => fixed[i] + Object.values(open).filter(o => o.li === i).length);
   return JSON.stringify({ removed: removed, added: added, moved: moved, updated: updated, kept: kept, pages: pages });
 }
@@ -134,11 +154,12 @@ function runInner(argv) {
   const ci = argv.findIndex(a => a.startsWith('--cap='));
   if (ci >= 0) CAP = parseInt(argv[ci].slice(6)) || 12;
   if (pi >= 0) { const n = parseInt(argv[pi].slice(8)) || 1; if (n > 1) PAGES = Array.from({ length: n }, (_, i) => i ? LIST + ' ' + String(i + 1).replace(/\d/g, d => AR_DIGITS[d]) : LIST); }
-  argv = argv.filter(a => !a.startsWith('--list=') && !a.startsWith('--keep=') && !a.startsWith('--pages=') && !a.startsWith('--cap='));
+  const REBALANCE = argv.includes('--rebalance');  // أوّل مزامنةٍ من اليوم: تُعاد البنود كلّها بترتيب الوقت
+  argv = argv.filter(a => !a.startsWith('--list=') && !a.startsWith('--keep=') && !a.startsWith('--pages=') && !a.startsWith('--cap=') && a !== '--rebalance');
   const app = Application('Reminders');
   const list = getList(app);
   const cmd = argv[0];
-  if (PAGES && (cmd === 'read' || cmd === 'sync')) return pagedRun(app, cmd, argv);
+  if (PAGES && (cmd === 'read' || cmd === 'sync')) return pagedRun(app, cmd, argv, REBALANCE);
 
   if (cmd === 'read') {
     // قراءةٌ دفعةً واحدة لكلّ خاصّيّة: سؤال التطبيق عن كلّ بندٍ على حدة كان يعلق

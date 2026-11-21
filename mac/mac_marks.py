@@ -258,7 +258,12 @@ def sync_list(tok, today):
     tmp = os.path.join(STATE, "sync_items.json")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({"items": items}, f, ensure_ascii=False)
-    r = C.osa("reminders.js", "sync", tmp, timeout=900)
+    # صفحات اليوم (٢١ نوفمبر ٢٠٢٦): في أوّل مزامنةٍ من اليوم تُعاد البنود كلّها بترتيب الوقت، وفي النهار يدخل الجديد صفحة نافذته
+    ppath = os.path.join(STATE, "pages_date")
+    rebal = not os.path.exists(ppath) or open(ppath).read().strip() != today.isoformat()
+    r = C.osa("reminders.js", "sync", tmp, *(["--rebalance"] if rebal else []), timeout=1800)
+    if r.returncode == 0 and rebal:
+        open(ppath, "w").write(today.isoformat())
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[:200])
     with open(vpath, "w", encoding="utf-8") as f:

@@ -34,7 +34,7 @@ flowchart LR
     end
     subgraph MAC["الماك"]
         WH["Whisper محلّيًّا<br/>transcribe.sh (مرّتان)"]
-        SC["سكربتات بلا ذكاء<br/>marks · calendar · horizons · audio · learn"]
+        SC["سكربتات بلا ذكاء<br/>tick (launchd كلّ ١٠ دقائق): marks · calendar · horizons · learn<br/>والوكيل: audio · meeting"]
         MA["وكيل الماك<br/>كلّ ١٠ دقائق"]
     end
     subgraph CLOUD["السحابة"]

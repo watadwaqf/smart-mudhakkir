@@ -27,7 +27,7 @@ spec.loader.exec_module(mc)
 C = mc.C
 STATE = C.STATE
 
-SILENT = ("قراءة:", "سؤال:", "أسئلة:") + tuple(C.cfg["external_prefixes"])
+SILENT = ("قراءة:", "سؤال:", "أسئلة:", "تنبيه:") + tuple(C.cfg["external_prefixes"])
 STEPS = [1, 3, 7, 14, 30, 60]
 
 

@@ -78,7 +78,7 @@ function pagedRun(app, cmd, argv, rebalance) {
   }
   const data = JSON.parse(readFile(argv[1]));
   const now = new Date(); const today = new Date(); today.setHours(0, 0, 0, 0);
-  const keep = k => k.startsWith('أسئلة:') || k.startsWith('سؤال:') || k.startsWith('تنبيه:') || KEEP.some(p => k.startsWith(p));
+  const keep = k => k.startsWith('أسئلة:') || k.startsWith('سؤال:') || k.startsWith('تنبيه:') || k.startsWith('تحضير:') || KEEP.some(p => k.startsWith(p));
   const doneToday = new Set(all.filter(x => x.done && x.key && x.date && x.date >= today).map(x => x.key));
   const items = data.items.map((it, i) => Object.assign({ _i: i }, it)).filter(it => !keep(String(it.key)))
     .sort((a, b) => rankOf(a) - rankOf(b) || a._i - b._i);
@@ -209,7 +209,7 @@ function runInner(argv) {
     let added = 0, updated = 0, removed = 0, kept = 0;
     data.items.forEach(it => {
       const k = String(it.key);
-      if (k.startsWith('أسئلة:') || k.startsWith('سؤال:') || k.startsWith('تنبيه:')) return; // الأسئلة بندٌ واحد يديره mac_calendar.py
+      if (k.startsWith('أسئلة:') || k.startsWith('سؤال:') || k.startsWith('تنبيه:') || k.startsWith('تحضير:')) return; // الأسئلة بندٌ واحد يديره mac_calendar.py
       want.add(k);
       if (doneToday.has(k)) return;
       const name = nameOf(it), body = bodyOf(it);
@@ -229,13 +229,13 @@ function runInner(argv) {
       }
       const props = { name: name, body: body };
       if (it.time && new Date(it.time) > now) { props.dueDate = new Date(it.time); props.remindMeDate = new Date(it.time); }
-      else props.alldayDueDate = today;
+      else if (!it.nodate) props.alldayDueDate = today;  // nodate: بندٌ للعرض بلا تاريخ (قائمة الغد)
       pushItem(app, list, props, it.key);
       added++;
     });
     // بند «أسئلة:…» يديره mac_calendar.py، وبنود البادئات الخارجيّة (--keep) تديرها أداتها، فلا تُحذف هنا
     Object.keys(open).forEach(k => {
-      if (want.has(k) || k.startsWith('أسئلة:') || k.startsWith('تنبيه:') || KEEP.some(p => k.startsWith(p))) return;
+      if (want.has(k) || k.startsWith('أسئلة:') || k.startsWith('تنبيه:') || k.startsWith('تحضير:') || KEEP.some(p => k.startsWith(p))) return;
       try { app.delete(byId(open[k].id)); removed++; } catch (e) {}
     });
     return JSON.stringify({ removed: removed, added: added, updated: updated, kept: kept });
